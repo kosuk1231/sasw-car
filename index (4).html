@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0E6B67">
+<title>서사협 차량운행일지</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230E6B67'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'%3Ekm%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EEF2F1; --surface:#FFFFFF; --surface-2:#F6F8F8;
+  --ink:#172422; --muted:#5F6F6C; --line:#D3DDDB; --line-strong:#B9C7C4;
+  --accent:#0E6B67; --accent-ink:#FFFFFF; --accent-soft:#D9ECEA; --accent-soft-ink:#0A4F4C;
+  --warn:#A7461A; --warn-soft:#F8E6DC; --danger:#B3261E; --danger-soft:#F9E3E1;
+  --focus:#0E6B67;
+  --radius:14px; --control:56px; --font-ui:17px;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111918; --surface:#1A2423; --surface-2:#202C2B;
+    --ink:#E6EEEC; --muted:#9DAEAB; --line:#2B3A38; --line-strong:#3C4F4C;
+    --accent:#5BBDB7; --accent-ink:#0B1716; --accent-soft:#163331; --accent-soft-ink:#BFE3E0;
+    --warn:#E6946A; --warn-soft:#3A271D; --danger:#F08A82; --danger-soft:#3C1F1D; --focus:#5BBDB7;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;
+  font-size:var(--font-ui); line-height:1.45; color:var(--ink); background:var(--bg);
+  -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums;
+  padding-top:var(--safe-top);
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.app{max-width:760px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+header.top{
+  position:sticky;top:0;z-index:20;background:var(--bg);
+  padding:14px 18px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+}
+header.top h1{font-size:19px;font-weight:700;letter-spacing:-.01em}
+header.top h1 small{display:block;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:0}
+.sync{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.sync .dot{width:8px;height:8px;border-radius:50%;background:var(--line-strong)}
+.sync.ok .dot{background:var(--accent)} .sync.busy .dot{background:var(--warn);animation:pulse 1s infinite}
+.sync.err .dot{background:var(--danger)}
+@keyframes pulse{50%{opacity:.3}}
+
+main{flex:1;padding:0 14px calc(96px + var(--safe-bottom))}
+.view{display:none}.view.active{display:block}
+
+/* 카드/패널 */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.field{margin-bottom:14px}
+.field label,.field .lbl{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%;height:var(--control);padding:0 14px;border:1px solid var(--line-strong);border-radius:12px;
+  background:var(--surface);-webkit-appearance:none;appearance:none;font-size:18px;
+}
+input[type=date]{min-width:0}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235F6F6C' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+input[readonly]{background:var(--surface-2);color:var(--muted)}
+.row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+
+/* 세그먼트(차량 선택) */
+.seg{display:flex;gap:8px}
+.seg button{flex:1;height:52px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface);font-size:17px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* 칩(용무) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chips button{height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--line-strong);background:var(--surface);font-size:15px;color:var(--ink)}
+.chips button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-soft-ink);font-weight:600}
+
+/* 계기판 블록 — 이 앱의 중심 요소 */
+.odo{
+  background:var(--accent-soft);border-radius:var(--radius);padding:16px;margin-bottom:12px;
+  border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);color:var(--accent-soft-ink);
+}
+.odo-start{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;opacity:.9}
+.odo-start b{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.odo-end{display:block;margin-top:10px}
+.odo-end>span{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;font-weight:600;margin-bottom:6px}
+.odo-end>span small{font-size:12px;font-weight:400;opacity:.75}
+.odo-end input{height:72px;font-size:36px;font-weight:700;text-align:right;padding:0 16px;letter-spacing:-.01em;
+  border:2px solid color-mix(in srgb,var(--accent) 45%,transparent);background:var(--surface);color:var(--ink);border-radius:14px}
+.odo-dist{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px}
+.odo-dist input{width:120px;height:46px;font-size:22px;font-weight:700;text-align:right;padding:0 12px;background:var(--surface);color:var(--ink);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.odo-dist .hint{margin-left:auto;font-size:12px;opacity:.75}
+
+/* 운전자 칩 격자 */
+.grid-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid-chips button{height:50px;border-radius:12px;border:1px solid var(--line-strong);background:var(--surface);font-size:17px;font-weight:600;color:var(--ink)}
+.grid-chips button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* 접힘 버튼 */
+.disclose{width:100%;height:48px;border-radius:12px;border:1px dashed var(--line-strong);color:var(--muted);font-size:15px;font-weight:600;background:var(--surface-2)}
+.disclose.open{border-style:solid;color:var(--accent);margin-bottom:12px}
+
+/* 하단 고정 저장 바 */
+#view-entry{padding-bottom:84px}
+.save-bar{position:fixed;left:0;right:0;bottom:calc(62px + var(--safe-bottom));z-index:25;padding:8px 14px 10px;
+  background:linear-gradient(to top,var(--bg) 70%,transparent)}
+.save-bar .btn{max-width:732px;margin:0 auto;display:flex;height:58px;font-size:19px;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 35%,transparent)}
+
+/* 방금 저장한 기록 */
+.saved{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:12px 14px;margin:4px 0 12px;font-size:14px;color:var(--muted)}
+.saved b{color:var(--accent);font-size:15px;margin-right:6px}
+.saved .btn{white-space:nowrap;flex-shrink:0}
+.saved .t{color:var(--ink)}
+
+/* 버튼 */
+.btn{height:54px;padding:0 20px;border-radius:12px;font-size:18px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-primary:disabled{opacity:.55}
+.btn-ghost{background:var(--surface);border:1px solid var(--line-strong);color:var(--ink);font-weight:600}
+.btn-sm{height:38px;font-size:15px;padding:0 14px;border-radius:10px;width:auto}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-warn{background:var(--warn-soft);color:var(--warn)}
+
+/* 목록 */
+.filters{position:sticky;top:58px;z-index:10;background:var(--bg);padding:4px 0 10px}
+.filters .row{margin-bottom:8px}
+.summary{font-size:14px;color:var(--muted);padding:2px 4px 10px;display:flex;gap:14px;flex-wrap:wrap}
+.summary b{color:var(--ink);font-weight:600}
+.log{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;border-left:5px solid var(--accent)}
+.log.v2{border-left-color:var(--warn)}
+.log .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.log .date{font-size:14px;color:var(--muted)}
+.log .who{font-size:19px;font-weight:700;margin-top:2px}
+.log .veh{font-size:13px;color:var(--muted);margin-top:2px}
+.log .km{text-align:right}
+.log .km .d{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.log .km .d small{font-size:13px;font-weight:500}
+.log .km .r{font-size:13px;color:var(--muted);margin-top:4px}
+.log .body{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:15px;display:flex;justify-content:space-between;gap:10px;align-items:flex-end}
+.log .body p{margin-bottom:2px}.log .body .k{color:var(--muted)}
+.log .acts{display:flex;gap:6px;flex-shrink:0}
+.log .acts button{height:34px;padding:0 10px;border-radius:9px;font-size:14px;border:1px solid var(--line-strong);background:var(--surface)}
+.log .acts .del{color:var(--danger);border-color:transparent;background:var(--danger-soft)}
+.empty{text-align:center;color:var(--muted);padding:48px 16px}
+.empty b{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+
+/* 관리 */
+.item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .n{font-size:18px;font-weight:600}.item .s{font-size:13px;color:var(--muted)}
+.item .acts{display:flex;gap:6px}
+.item .acts button{height:34px;padding:0 10px;border-radius:9px;font-size:14px;border:1px solid var(--line-strong);background:var(--surface)}
+.item .acts .del{color:var(--danger);border-color:transparent;background:var(--danger-soft)}
+.panel h2{font-size:17px;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.panel h2 .btn-sm{font-weight:600}
+.tools p{font-size:14px;color:var(--muted);margin:6px 0 10px}
+
+/* 하단 탭 */
+nav.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:var(--safe-bottom);
+}
+nav.tabs .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav.tabs button{height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;color:var(--muted)}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button.on{color:var(--accent);font-weight:700}
+
+/* 모달 */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.modal.open{display:flex}
+.sheet{background:var(--surface);width:100%;max-width:760px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + var(--safe-bottom))}
+.sheet h3{font-size:19px;font-weight:700;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.sheet h3 button{font-size:15px;color:var(--muted);font-weight:500}
+
+/* 토스트 */
+.toast{position:fixed;left:50%;bottom:calc(150px + var(--safe-bottom));transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:12px;font-size:15px;z-index:60;transition:.2s;max-width:92vw;text-align:center;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast.err{background:var(--danger);color:#fff}
+
+/* 월별 운행일지 (화면 미리보기 + 인쇄) */
+.report-wrap{overflow:hidden}
+.report{
+  background:#fff;color:#000;width:720px;max-width:none;transform-origin:top left;padding:28px 30px;border:1px solid var(--line);border-radius:8px;
+  font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:12px;line-height:1.4;margin-bottom:16px;
+}
+.report .approval{display:flex;justify-content:flex-end;margin-bottom:14px}
+.report .approval table{border-collapse:collapse}
+.report .approval td,.report .approval th{border:1px solid #000;text-align:center;font-weight:400}
+.report .approval th.side{width:24px;font-size:11px;line-height:1.2;padding:4px 2px;vertical-align:middle}
+.report .approval th.role{width:76px;height:22px;font-size:11px}
+.report .approval td.sign{height:56px}
+.report h1{font-size:22px;font-weight:700;text-align:center;letter-spacing:.3em;margin:4px 0 2px}
+.report .sub{text-align:center;font-size:14px;margin-bottom:14px}
+.report .meta{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px;font-size:12px}
+.report .meta b{font-size:14px}
+.report table.log-table{width:100%;border-collapse:collapse}
+.report table.log-table th,.report table.log-table td{border:1px solid #000;padding:5px 6px;text-align:center;font-size:12px;vertical-align:middle}
+.report table.log-table th{background:#f0f0f0;font-weight:700;white-space:nowrap}
+.report table.log-table td.l{text-align:left}
+.report table.log-table td.nw{white-space:nowrap}
+.report table.log-table td.r{text-align:right}
+.report table.log-table tr.total td{font-weight:700;background:#fafafa}
+.report .foot{margin-top:14px;font-size:11px;display:flex;justify-content:space-between}
+.report + .report{page-break-before:always}
+@page{size:A4 portrait;margin:14mm 12mm}
+@media print{
+  html,body{background:#fff;padding:0}
+  header.top,nav.tabs,.filters,.no-print,.toast,.modal,.save-bar{display:none!important}
+  main{padding:0}
+  .view{display:none}.view#view-report{display:block}
+  .report-wrap{overflow:visible}
+  .report{border:0;border-radius:0;padding:0;width:100%;margin:0;transform:none!important}
+  .report-wrap{height:auto!important}
+  .report + .report{page-break-before:always}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>서사협 차량운행일지<small>서울특별시사회복지사협회 사무처</small></h1>
+    <div class="sync" id="sync"><span class="dot"></span><span id="sync-text">불러오는 중</span></div>
+  </header>
+
+  <main>
+    <!-- 1. 기록 입력 -->
+    <section class="view active" id="view-entry">
+      <div id="last-saved"></div>
+      <form id="entry-form" autocomplete="off">
+        <div class="panel">
+          <div class="field"><span class="lbl">운행일자</span>
+            <div class="seg" id="date-seg">
+              <button type="button" data-d="0" class="on">오늘</button>
+              <button type="button" data-d="-1">어제</button>
+              <button type="button" data-d="pick">다른 날</button>
+            </div>
+            <input type="date" id="f-date" required style="display:none;margin-top:8px">
+          </div>
+          <div class="field"><span class="lbl">운전자</span><div class="grid-chips" id="driver-chips"></div></div>
+          <div class="field" style="margin-bottom:0"><span class="lbl">차량</span><div class="seg" id="f-vehicle"></div></div>
+        </div>
+
+        <div class="odo">
+          <div class="odo-start"><span>출발 km</span><b id="odo-start">—</b></div>
+          <label class="odo-end" for="f-end"><span>도착 km <small>계기판 숫자 그대로</small></span>
+            <input type="number" id="f-end" inputmode="numeric" placeholder="0" min="0"></label>
+          <div class="odo-dist"><label for="f-dist">주행거리</label><input type="number" id="f-dist" inputmode="numeric" placeholder="0" min="1"><span>km</span><span class="hint">둘 중 하나만</span></div>
+        </div>
+
+        <div class="panel">
+          <div class="field"><label class="lbl" for="f-purpose">용무</label><div class="chips" id="purpose-chips"></div><input type="text" id="f-purpose" placeholder="직접 입력" required></div>
+          <div class="field"><label class="lbl" for="f-dest">경유지 및 목적지</label><input type="text" id="f-dest" list="dest-list" placeholder="예: 신목종합사회복지관"><datalist id="dest-list"></datalist></div>
+          <button type="button" class="disclose" id="maint-toggle">+ 주유 · 정비 · 금액 입력</button>
+          <div id="maint-wrap" hidden>
+            <div class="field"><span class="lbl">주유 등 정비</span><div class="chips" id="maint-chips"></div><input type="hidden" id="f-maint"></div>
+            <div class="row">
+              <div class="field"><label class="lbl" for="f-maint-detail">내용</label><input type="text" id="f-maint-detail" placeholder="예: 엔진오일"></div>
+              <div class="field"><label class="lbl" for="f-cost">금액(원)</label><input type="number" id="f-cost" inputmode="numeric" placeholder="0"></div>
+            </div>
+          </div>
+        </div>
+        <div class="save-bar"><button type="submit" class="btn btn-primary" id="save-btn">기록 저장</button></div>
+      </form>
+    </section>
+
+    <!-- 2. 목록 -->
+    <section class="view" id="view-list">
+      <div class="filters">
+        <div class="row">
+          <select id="l-vehicle"><option value="">전체 차량</option></select>
+          <select id="l-month"><option value="">전체 기간</option></select>
+        </div>
+        <input type="text" id="l-q" placeholder="운전자·용무·목적지 검색">
+      </div>
+      <div class="summary" id="l-summary"></div>
+      <div id="log-list"></div>
+    </section>
+
+    <!-- 3. 월별 운행일지 -->
+    <section class="view" id="view-report">
+      <div class="panel no-print">
+        <div class="row">
+          <div class="field"><label for="r-vehicle">차량</label><select id="r-vehicle"></select></div>
+          <div class="field"><label for="r-month">월</label><select id="r-month"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="r-sign1">결재란 1</label><input type="text" id="r-sign1" value="담당"></div>
+          <div class="field"><label for="r-sign2">결재란 2</label><input type="text" id="r-sign2" value="사무처장"></div>
+        </div>
+        <button class="btn btn-primary" id="print-btn">운행일지 인쇄 / PDF 저장</button>
+      </div>
+      <div class="report-wrap" id="report-root"></div>
+    </section>
+
+    <!-- 4. 관리 -->
+    <section class="view" id="view-admin">
+      <div class="panel"><h2>차량 <button class="btn btn-sm btn-ghost" data-add="vehicle">+ 추가</button></h2><div id="vehicle-list"></div></div>
+      <div class="panel"><h2>운전자 <button class="btn btn-sm btn-ghost" data-add="driver">+ 추가</button></h2><div id="driver-list"></div></div>
+      <div class="panel tools">
+        <h2>데이터 도구</h2>
+        <p>출발 km가 직전 기록과 어긋난 행을 날짜·입력 순으로 정리합니다. 각 행의 <b>주행거리</b>는 그대로 두고 출발·도착 km만 다시 계산합니다.</p>
+        <button class="btn btn-warn" id="recalc-btn">주행거리 기준 전체 재계산</button>
+        <p style="margin-top:14px">원본 데이터는 구글 시트에 그대로 저장됩니다.</p>
+        <div class="row">
+          <button class="btn btn-ghost" id="refresh-btn">다시 불러오기</button>
+          <a class="btn btn-ghost" id="sheet-link" target="_blank" rel="noopener" style="text-decoration:none">시트 열기</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs"><div class="in">
+    <button data-view="entry" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>기록</button>
+    <button data-view="list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>목록</button>
+    <button data-view="report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>월별출력</button>
+    <button data-view="admin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/><circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>관리</button>
+  </div></nav>
+</div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ───────── 설정 ───────── */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzgq4px7SxPZTtKEbh450k-09TrCUxW8U6VMwNnGxXyjZMuhPWkvLb2eZsTsT7GXWwD/exec';
+const API_KEY = 'sasw-car-2026';            // Code.gs의 API_KEY와 동일하게
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NKk3cQi9mglHgRD06VZt-NN_S7TSSf8dhP-Tzaahp5s/edit';
+const DEMO = false;                           // true면 서버 없이 예시 데이터로 동작
+const PURPOSES = ['기관방문','회의','답사','행사 참석','보수교육 연계','물품구입','조문','서류제출','워크숍'];
+const CACHE_KEY = 'sasw-car-cache-v1';
+const LAST_DRIVER_KEY = 'sasw-car-last-driver';
+
+/* ───────── 상태 ───────── */
+let vehicles = [], drivers = [], logs = [];
+let view = 'entry';
+let entry = { vehicleId: '', driverId: '', startKm: null };
+let lastSync = null;
+
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const fmt = n => (n === '' || n == null || isNaN(n)) ? '' : Number(n).toLocaleString('ko-KR');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const withDay = ds => { if(!ds) return ''; const d = new Date(ds+'T00:00:00'); return `${ds} (${'일월화수목금토'[d.getDay()]})`; };
+const dotDate = ds => { const [y,m,d] = ds.split('-'); return `${y}. ${Number(m)}. ${Number(d)}`; };
+
+function toast(msg, err=false){ const t=$('#toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast', err?3200:2000); }
+function setSync(state, text){ const s=$('#sync'); s.className='sync '+state; $('#sync-text').textContent=text; }
+
+/* ───────── API ───────── */
+async function apiGet(action='all'){
+  if (DEMO) return demoApi('all');
+  const r = await fetch(`${API_URL}?action=${action}&key=${encodeURIComponent(API_KEY)}&t=${Date.now()}`, { cache:'no-store' });
+  const j = await r.json();
+  if (j.status !== 'success') throw Object.assign(new Error(j.message), { code:j.code, extra:j.extra });
+  return j.data;
+}
+async function apiPost(action, payload){
+  if (DEMO) return demoApi(action, payload);
+  // Content-Type을 text/plain으로 보내야 프리플라이트 없이 GAS에 도달합니다.
+  const r = await fetch(API_URL, { method:'POST', redirect:'follow',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, payload, key: API_KEY }) });
+  const j = await r.json();
+  if (j.status !== 'success') throw Object.assign(new Error(j.message), { code:j.code, extra:j.extra });
+  if (j.all) applyData(j.all);
+  return j.data;
+}
+
+function applyData(d){
+  vehicles = d.vehicles || []; drivers = d.drivers || []; logs = d.logs || [];
+  lastSync = new Date();
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ vehicles, drivers, logs, at: lastSync.toISOString() })); } catch(_){}
+  renderAll();
+  setSync('ok', `동기화 ${lastSync.getHours()}:${String(lastSync.getMinutes()).padStart(2,'0')}`);
+}
+async function loadData(silent=false){
+  if (!silent) setSync('busy','불러오는 중');
+  try { applyData(await apiGet('all')); }
+  catch(e){ setSync('err','연결 실패'); if(!silent) toast('데이터를 불러오지 못했습니다: '+e.message, true); }
+}
+async function run(action, payload, okMsg){
+  setSync('busy','저장 중');
+  try { const d = await apiPost(action, payload); if (okMsg) toast(okMsg); return d; }
+  catch(e){ setSync('err','오류'); throw e; }
+}
+
+/* ───────── 화면 전환 ───────── */
+function switchView(v){
+  view = v;
+  $$('.view').forEach(s => s.classList.toggle('active', s.id === 'view-'+v));
+  $$('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  window.scrollTo(0,0);
+  if (v === 'report') renderReport();
+}
+$$('nav.tabs button').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
+
+function renderAll(){ renderEntry(); renderList(); renderAdmin(); fillMonthSelects(); if (view==='report') renderReport(); }
+
+/* ───────── 1. 기록 입력 ───────── */
+const MAINTS = ['주유','정비(정기점검 등)','수리'];
+function latestEndKm(vehicleId){
+  const v = vehicles.find(x => x.id === vehicleId); if (!v) return null;
+  const l = logs.filter(x => x.vehicleName === v.name).sort((a,b) => (b.date+b.timestamp).localeCompare(a.date+a.timestamp))[0];
+  return l ? l.endOdometer : (v.cumulativeKm || 0);
+}
+function shiftDate(n){ const d = new Date(); d.setDate(d.getDate()+n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function setDateMode(mode){
+  $$('#date-seg button').forEach(b => b.classList.toggle('on', b.dataset.d === mode));
+  const inp = $('#f-date');
+  if (mode === 'pick') { inp.style.display = ''; try { inp.showPicker && inp.showPicker(); } catch(_){} }
+  else { inp.style.display = 'none'; inp.value = shiftDate(Number(mode)); }
+}
+$$('#date-seg button').forEach(b => b.addEventListener('click', () => setDateMode(b.dataset.d)));
+
+function renderEntry(){
+  if (!$('#f-date').value) $('#f-date').value = todayStr();
+  // 운전자 — 탭으로 선택, 마지막 선택 기억
+  if (!entry.driverId) entry.driverId = localStorage.getItem(LAST_DRIVER_KEY) || '';
+  if (entry.driverId && !drivers.some(d => d.id === entry.driverId)) entry.driverId = '';
+  $('#driver-chips').innerHTML = drivers.length
+    ? drivers.map(d => `<button type="button" data-id="${esc(d.id)}" class="${d.id===entry.driverId?'on':''}">${esc(d.name)}</button>`).join('')
+    : '<div class="empty" style="grid-column:1/-1;padding:12px">관리 탭에서 운전자를 먼저 등록하세요</div>';
+  $$('#driver-chips button').forEach(b => b.addEventListener('click', () => {
+    entry.driverId = b.dataset.id; localStorage.setItem(LAST_DRIVER_KEY, entry.driverId);
+    $$('#driver-chips button').forEach(x => x.classList.toggle('on', x === b));
+  }));
+  // 차량
+  const seg = $('#f-vehicle');
+  if (!entry.vehicleId && vehicles.length) entry.vehicleId = vehicles[0].id;
+  seg.innerHTML = vehicles.map(v => `<button type="button" data-id="${esc(v.id)}" class="${v.id===entry.vehicleId?'on':''}">${esc(v.name)}</button>`).join('');
+  $$('button', seg).forEach(b => b.addEventListener('click', () => { entry.vehicleId = b.dataset.id; renderEntry(); }));
+  entry.startKm = latestEndKm(entry.vehicleId);
+  $('#odo-start').textContent = entry.startKm == null ? '—' : fmt(entry.startKm) + ' km';
+  // 목적지 자동완성 — 최근 목적지
+  const dests = [...new Set(logs.map(l => l.destination.trim()).filter(Boolean))].slice(0, 60);
+  $('#dest-list').innerHTML = dests.map(d => `<option value="${esc(d)}">`).join('');
+  // 용무·정비 칩 (최초 1회)
+  const chips = $('#purpose-chips');
+  if (!chips.children.length) {
+    chips.innerHTML = PURPOSES.map(p => `<button type="button">${p}</button>`).join('');
+    $$('button', chips).forEach(b => b.addEventListener('click', () => { const on = b.classList.contains('on'); $('#f-purpose').value = on ? '' : b.textContent; markChip(); }));
+  }
+  const mchips = $('#maint-chips');
+  if (!mchips.children.length) {
+    mchips.innerHTML = MAINTS.map(m => `<button type="button">${m}</button>`).join('');
+    $$('button', mchips).forEach(b => b.addEventListener('click', () => {
+      const on = b.classList.contains('on'); $('#f-maint').value = on ? '' : b.textContent;
+      $$('#maint-chips button').forEach(x => x.classList.toggle('on', x === b && !on));
+    }));
+  }
+  recalcFromDist(); updateSaveLabel();
+}
+function markChip(){ const v=$('#f-purpose').value.trim(); $$('#purpose-chips button').forEach(b => b.classList.toggle('on', b.textContent===v)); }
+function recalcFromDist(){ const d = parseFloat($('#f-dist').value); if (entry.startKm != null && d > 0) $('#f-end').value = entry.startKm + d; updateSaveLabel(); }
+function recalcFromEnd(){ const e = parseFloat($('#f-end').value); if (entry.startKm != null && e > entry.startKm) $('#f-dist').value = e - entry.startKm; else if (!isNaN(e)) $('#f-dist').value = ''; updateSaveLabel(); }
+function updateSaveLabel(){ const d = parseFloat($('#f-dist').value); $('#save-btn').textContent = d > 0 ? `기록 저장 · ${fmt(d)} km` : '기록 저장'; }
+$('#f-dist').addEventListener('input', recalcFromDist);
+$('#f-end').addEventListener('input', recalcFromEnd);
+$('#f-purpose').addEventListener('input', markChip);
+$('#maint-toggle').addEventListener('click', () => {
+  const w = $('#maint-wrap'), t = $('#maint-toggle'); w.hidden = !w.hidden; t.classList.toggle('open', !w.hidden);
+  t.textContent = w.hidden ? '+ 주유 · 정비 · 금액 입력' : '− 주유 · 정비 · 금액';
+});
+// 숫자 키보드가 입력칸을 가리지 않도록
+$$('#entry-form input').forEach(i => i.addEventListener('focus', () => setTimeout(() => i.scrollIntoView({ block:'center', behavior:'smooth' }), 250)));
+
+$('#entry-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = vehicles.find(x => x.id === entry.vehicleId); const d = drivers.find(x => x.id === entry.driverId);
+  if (!v) return toast('차량을 선택하세요', true);
+  if (!d) { toast('운전자를 선택하세요', true); $('#driver-chips').scrollIntoView({block:'center'}); return; }
+  const start = entry.startKm, end = parseFloat($('#f-end').value);
+  if (start == null) return toast('출발 km를 알 수 없습니다. 관리 탭에서 차량 누적km를 확인하세요.', true);
+  if (!(end > start)) { toast('도착 km는 출발 km보다 커야 합니다', true); $('#f-end').focus(); return; }
+  if (!$('#f-purpose').value.trim()) { toast('용무를 고르거나 입력하세요', true); $('#f-purpose').focus(); return; }
+  const maint = $('#f-maint').value, detail = $('#f-maint-detail').value.trim();
+  const payload = {
+    date: $('#f-date').value, vehicleId: v.id, vehicleName: v.name, driverId: d.id, driverName: d.name,
+    purpose: $('#f-purpose').value.trim(), destination: $('#f-dest').value.trim(),
+    startOdometer: start, endOdometer: end,
+    notes: maint ? (detail ? `${maint}: ${detail}` : maint) : (detail || ''), fuelCost: $('#f-cost').value === '' ? '' : Number($('#f-cost').value)
+  };
+  await saveLog(payload);
+});
+
+function showLastSaved(p, id){
+  $('#last-saved').innerHTML = `<div class="saved"><div><b>저장됨</b><span class="t">${withDay(p.date)} · ${esc(p.driverName)} · ${esc(p.vehicleName)}</span><br>${esc(p.purpose)}${p.destination?' — '+esc(p.destination):''} · ${fmt(p.endOdometer-p.startOdometer)} km</div>
+    ${id?`<button type="button" class="btn btn-sm btn-ghost" data-edit-last="${esc(id)}">수정</button>`:''}</div>`;
+  const b = $('[data-edit-last]'); if (b) b.addEventListener('click', () => openLogEditor(b.dataset.editLast));
+}
+
+async function saveLog(payload){
+  const btn = $('#save-btn'); btn.disabled = true; btn.textContent = '저장 중…';
+  try {
+    const r = await run('addLog', payload, '저장했습니다');
+    ['#f-end','#f-dist','#f-purpose','#f-dest','#f-cost','#f-maint-detail','#f-maint'].forEach(s => $(s).value = '');
+    $$('#maint-chips button').forEach(x => x.classList.remove('on'));
+    $('#maint-wrap').hidden = true; $('#maint-toggle').classList.remove('open'); $('#maint-toggle').textContent = '+ 주유 · 정비 · 금액 입력';
+    markChip(); renderEntry(); showLastSaved(payload, r && r.id); window.scrollTo({ top:0, behavior:'smooth' });
+  } catch (e) {
+    if (e.code === 'CHAIN_MISMATCH') {
+      const exp = e.extra.expectedStart, dist = payload.endOdometer - payload.startOdometer;
+      const ok = confirm(`직전 기록(${e.extra.latestDate}, ${e.extra.latestDriver})의 도착 km는 ${fmt(exp)}입니다.
+지금 입력한 출발 km는 ${fmt(payload.startOdometer)}입니다.
+
+[확인] 입력한 값 그대로 저장
+[취소] 출발 km를 ${fmt(exp)}로 맞추고 다시 확인`);
+      if (ok) { btn.disabled=false; return saveLog({ ...payload, force:true }); }
+      await loadData(true); entry.startKm = exp; $('#f-dist').value = dist; recalcFromDist(); renderEntry();
+      toast(`출발 km를 ${fmt(exp)}로 맞췄습니다. 확인 후 다시 저장하세요.`);
+    } else if (e.code === 'DUPLICATE') {
+      toast('같은 기록이 이미 저장되어 있습니다', true); await loadData(true);
+    } else toast('저장 실패: ' + e.message, true);
+  } finally { btn.disabled = false; updateSaveLabel(); }
+}
+
+/* ───────── 2. 목록 ───────── */
+function monthsOf(){ const s = new Set(logs.map(l => l.date.slice(0,7))); s.add(todayStr().slice(0,7)); return [...s].sort().reverse(); }
+function fillMonthSelects(){
+  const opts = monthsOf().map(m => { const [y,mm]=m.split('-'); return `<option value="${m}">${y}년 ${Number(mm)}월</option>`; }).join('');
+  const lm = $('#l-month'); const lv = lm.value; lm.innerHTML = '<option value="">전체 기간</option>' + opts; lm.value = lv;
+  const rm = $('#r-month'); const rv = rm.value || todayStr().slice(0,7); rm.innerHTML = opts; rm.value = [...rm.options].some(o=>o.value===rv) ? rv : (rm.options[0]?.value || '');
+  const vopts = vehicles.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+  const lvv = $('#l-vehicle'); const c1 = lvv.value; lvv.innerHTML = '<option value="">전체 차량</option>' + vopts; lvv.value = c1;
+  const rvv = $('#r-vehicle'); const c2 = rvv.value; rvv.innerHTML = vopts + '<option value="__all__">모든 차량 (차량별 페이지)</option>'; rvv.value = c2 || (vehicles[0]?.name || '');
+}
+function filteredLogs(){
+  const v = $('#l-vehicle').value, m = $('#l-month').value, q = $('#l-q').value.trim().toLowerCase();
+  return logs.filter(l => (!v || l.vehicleName === v) && (!m || l.date.startsWith(m)) &&
+    (!q || [l.driverName,l.purpose,l.destination,l.notes].join(' ').toLowerCase().includes(q)));
+}
+function renderList(){
+  const list = filteredLogs();
+  const km = list.reduce((s,l) => s + (l.distance||0), 0), cost = list.reduce((s,l) => s + (Number(l.fuelCost)||0), 0);
+  $('#l-summary').innerHTML = `<span><b>${fmt(list.length)}</b>건</span><span>주행 <b>${fmt(km)}</b> km</span>${cost?`<span>지출 <b>${fmt(cost)}</b>원</span>`:''}`;
+  if (!list.length) { $('#log-list').innerHTML = `<div class="empty"><b>기록이 없습니다</b>조건을 바꾸거나 새 기록을 입력하세요.</div>`; return; }
+  $('#log-list').innerHTML = list.slice(0, 300).map(l => `
+    <article class="log ${vehicles.findIndex(v=>v.name===l.vehicleName)===1?'v2':''}">
+      <div class="head">
+        <div><div class="date">${withDay(l.date)}</div><div class="who">${esc(l.driverName)}</div><div class="veh">${esc(l.vehicleName)}</div></div>
+        <div class="km"><div class="d">${fmt(l.distance)}<small> km</small></div><div class="r">${fmt(l.startOdometer)} → ${fmt(l.endOdometer)}</div></div>
+      </div>
+      <div class="body">
+        <div>
+          <p><span class="k">용무</span> ${esc(l.purpose)||'-'}</p>
+          <p><span class="k">목적지</span> ${esc(l.destination)||'-'}</p>
+          ${l.notes?`<p><span class="k">정비</span> ${esc(l.notes)}</p>`:''}
+          ${l.fuelCost!==''&&l.fuelCost!=null?`<p><span class="k">금액</span> ${fmt(l.fuelCost)}원</p>`:''}
+        </div>
+        <div class="acts"><button data-edit="${esc(l.id)}">수정</button><button class="del" data-del="${esc(l.id)}">삭제</button></div>
+      </div>
+    </article>`).join('') + (list.length>300?`<div class="empty">최근 300건까지 표시합니다. 조건을 좁혀 보세요.</div>`:'');
+  $$('[data-edit]').forEach(b => b.addEventListener('click', () => openLogEditor(b.dataset.edit)));
+  $$('[data-del]').forEach(b => b.addEventListener('click', async () => {
+    const l = logs.find(x => x.id === b.dataset.del);
+    if (!confirm(`${withDay(l.date)} ${l.driverName} · ${l.vehicleName}\n${fmt(l.distance)}km 기록을 삭제할까요?`)) return;
+    try { await run('deleteLog', { id: l.id }, '삭제했습니다'); } catch(e){ toast('삭제 실패: '+e.message, true); }
+  }));
+}
+['#l-vehicle','#l-month'].forEach(s => $(s).addEventListener('change', renderList));
+$('#l-q').addEventListener('input', renderList);
+
+/* 기록 수정 모달 */
+function openLogEditor(id){
+  const l = logs.find(x => x.id === id); if (!l) return;
+  const [mType, mDetail] = l.notes.includes(':') ? [l.notes.split(':')[0].trim(), l.notes.split(':').slice(1).join(':').trim()] : [l.notes.trim(), ''];
+  openSheet(`
+    <h3>기록 수정 <button type="button" data-close>닫기</button></h3>
+    <form id="edit-form">
+      <div class="row">
+        <div class="field"><label>운행일자</label><input type="date" name="date" value="${l.date}" required></div>
+        <div class="field"><label>운전자</label><select name="driverId">${drivers.map(d=>`<option value="${esc(d.id)}" ${d.name===l.driverName?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label>차량</label><select name="vehicleId">${vehicles.map(v=>`<option value="${esc(v.id)}" ${v.name===l.vehicleName?'selected':''}>${esc(v.name)}</option>`).join('')}</select></div>
+      <div class="row">
+        <div class="field"><label>출발 km</label><input type="number" name="start" value="${l.startOdometer}" required></div>
+        <div class="field"><label>도착 km</label><input type="number" name="end" value="${l.endOdometer}" required></div>
+      </div>
+      <div class="field"><label>용무</label><input type="text" name="purpose" value="${esc(l.purpose)}"></div>
+      <div class="field"><label>경유지 및 목적지</label><input type="text" name="dest" value="${esc(l.destination)}"></div>
+      <div class="row">
+        <div class="field"><label>주유 등 정비</label><select name="maint"><option value="">없음</option>${['주유','정비(정기점검 등)','수리'].map(o=>`<option ${mType===o?'selected':''}>${o}</option>`).join('')}</select></div>
+        <div class="field"><label>소요금액(원)</label><input type="number" name="cost" value="${l.fuelCost===''?'':l.fuelCost}"></div>
+      </div>
+      <div class="field"><label>정비 내용</label><input type="text" name="detail" value="${esc(mDetail)}"></div>
+      <button class="btn btn-primary" type="submit">수정 내용 저장</button>
+    </form>`);
+  $('#edit-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = new FormData(e.target), v = vehicles.find(x => x.id === f.get('vehicleId')), d = drivers.find(x => x.id === f.get('driverId'));
+    const start = Number(f.get('start')), end = Number(f.get('end'));
+    if (!(end > start)) return toast('도착 km는 출발 km보다 커야 합니다', true);
+    const maint = f.get('maint'), detail = f.get('detail').trim();
+    try {
+      await run('updateLog', { id, date: f.get('date'), vehicleId: v.id, vehicleName: v.name, driverId: d.id, driverName: d.name,
+        purpose: f.get('purpose').trim(), destination: f.get('dest').trim(), startOdometer: start, endOdometer: end,
+        notes: maint ? (detail ? `${maint}: ${detail}` : maint) : '', fuelCost: f.get('cost') === '' ? '' : Number(f.get('cost')) }, '수정했습니다');
+      closeSheet();
+    } catch(err){ toast('수정 실패: '+err.message, true); }
+  });
+}
+
+/* ───────── 3. 월별 운행일지 ───────── */
+function renderReport(){
+  const vSel = $('#r-vehicle').value, m = $('#r-month').value;
+  if (!m) { $('#report-root').innerHTML = '<div class="empty">기록이 있는 달을 선택하세요.</div>'; return; }
+  const names = vSel === '__all__' ? vehicles.map(v=>v.name) : [vSel];
+  $('#report-root').innerHTML = names.map(n => reportHtml(n, m)).join('');
+  fitReport();
+}
+function fitReport(){
+  const wrap = $('#report-root'); const w = wrap.clientWidth; if (!w) return;
+  const scale = Math.min(1, w / 720);
+  let total = 0;
+  $$('.report', wrap).forEach(r => { r.style.transform = `scale(${scale})`; r.style.marginBottom = `${-r.offsetHeight*(1-scale) + 16}px`; });
+}
+window.addEventListener('resize', () => { if (view==='report') fitReport(); });
+function reportHtml(vehicleName, month){
+  const [y, mm] = month.split('-'); const mNum = Number(mm);
+  const rows = logs.filter(l => l.vehicleName === vehicleName && l.date.startsWith(month)).sort((a,b) => (a.date+a.timestamp).localeCompare(b.date+b.timestamp));
+  const km = rows.reduce((s,l)=>s+(l.distance||0),0), cost = rows.reduce((s,l)=>s+(Number(l.fuelCost)||0),0);
+  const s1 = esc($('#r-sign1').value || '담당'), s2 = esc($('#r-sign2').value || '사무처장');
+  const body = rows.length ? rows.map(l => `<tr>
+      <td class="nw">${dotDate(l.date)}</td><td class="nw">${esc(l.driverName)}</td><td class="l">${esc(l.purpose)}</td><td class="l">${esc(l.destination)}</td>
+      <td class="r">${fmt(l.startOdometer)}</td><td class="r">${fmt(l.endOdometer)}</td><td class="r">${fmt(l.distance)}</td>
+      <td class="l">${esc(l.notes)}</td><td class="r">${l.fuelCost!==''&&l.fuelCost!=null?fmt(l.fuelCost):''}</td></tr>`).join('')
+    : `<tr><td colspan="9" style="padding:18px">${mNum}월 운행 기록이 없습니다.</td></tr>`;
+  return `<div class="report">
+    <div class="approval"><table>
+      <tr><th class="side" rowspan="2">결<br>재</th><th class="role">${s1}</th><th class="role">${s2}</th></tr>
+      <tr><td class="sign"></td><td class="sign"></td></tr>
+    </table></div>
+    <h1>차량운행일지</h1>
+    <div class="sub">${y}년 ${mNum}월 &nbsp;|&nbsp; ${esc(vehicleName)}</div>
+    <div class="meta"><span>서울특별시사회복지사협회</span><span>${mNum}월 이동 거리 <b>${fmt(km)} km</b></span></div>
+    <table class="log-table">
+      <thead><tr><th style="width:11%">운행일자</th><th style="width:8%">운전자</th><th style="width:11%">용무</th><th>경유지 및 목적지</th><th style="width:9%">출발(km)</th><th style="width:9%">도착(km)</th><th style="width:9%">주행거리</th><th style="width:12%">주유 등 정비</th><th style="width:9%">소요금액</th></tr></thead>
+      <tbody>${body}
+      <tr class="total"><td colspan="6">합계</td><td class="r">${fmt(km)}</td><td></td><td class="r">${cost?fmt(cost):''}</td></tr></tbody>
+    </table>
+    <div class="foot"><span>운행 ${rows.length}건</span><span>출력일 ${dotDate(todayStr())}</span></div>
+  </div>`;
+}
+['#r-vehicle','#r-month','#r-sign1','#r-sign2'].forEach(s => $(s).addEventListener('input', renderReport));
+$('#print-btn').addEventListener('click', () => { renderReport(); window.print(); });
+
+/* ───────── 4. 관리 ───────── */
+function renderAdmin(){
+  $('#sheet-link').href = SHEET_URL;
+  $('#vehicle-list').innerHTML = vehicles.length ? vehicles.map(v => `<div class="item"><div><div class="n">${esc(v.name)}</div><div class="s">${esc(v.id)} · 누적 ${fmt(v.cumulativeKm)} km</div></div>
+    <div class="acts"><button data-ed="vehicle" data-id="${esc(v.id)}">수정</button><button class="del" data-rm="vehicle" data-id="${esc(v.id)}">삭제</button></div></div>`).join('') : '<div class="empty">등록된 차량이 없습니다</div>';
+  $('#driver-list').innerHTML = drivers.length ? drivers.map(d => `<div class="item"><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.id)}</div></div>
+    <div class="acts"><button data-ed="driver" data-id="${esc(d.id)}">수정</button><button class="del" data-rm="driver" data-id="${esc(d.id)}">삭제</button></div></div>`).join('') : '<div class="empty">등록된 운전자가 없습니다</div>';
+  $$('[data-ed]').forEach(b => b.addEventListener('click', () => openItemEditor(b.dataset.ed, b.dataset.id)));
+  $$('[data-rm]').forEach(b => b.addEventListener('click', async () => {
+    const type = b.dataset.rm, it = (type==='vehicle'?vehicles:drivers).find(x => x.id === b.dataset.id);
+    if (!confirm(`'${it.name}'을(를) 삭제할까요? 기존 운행 기록은 남습니다.`)) return;
+    try { await run(type==='vehicle'?'deleteVehicle':'deleteDriver', { id: it.id }, '삭제했습니다'); } catch(e){ toast('삭제 실패: '+e.message, true); }
+  }));
+}
+$$('[data-add]').forEach(b => b.addEventListener('click', () => openItemEditor(b.dataset.add, null)));
+function openItemEditor(type, id){
+  const isV = type === 'vehicle', it = id ? (isV?vehicles:drivers).find(x => x.id === id) : null;
+  const nextId = isV ? `sasw_${vehicles.length+1}` : `sasw_${String(drivers.length+1).padStart(3,'0')}`;
+  openSheet(`
+    <h3>${isV?'차량':'운전자'} ${it?'수정':'추가'} <button type="button" data-close>닫기</button></h3>
+    <form id="item-form">
+      <div class="field"><label>ID</label><input type="text" name="id" value="${esc(it?it.id:nextId)}" ${it?'readonly':''} required></div>
+      <div class="field"><label>${isV?'차량 이름 (예: 카니발 74소3723)':'이름'}</label><input type="text" name="name" value="${esc(it?it.name:'')}" required></div>
+      ${isV?`<div class="field"><label>현재 누적 km</label><input type="number" name="km" value="${it?it.cumulativeKm:''}" placeholder="계기판 숫자"></div>`:''}
+      <button class="btn btn-primary" type="submit">저장</button>
+    </form>`);
+  $('#item-form').addEventListener('submit', async e => {
+    e.preventDefault(); const f = new FormData(e.target);
+    const payload = { id: f.get('id').trim(), name: f.get('name').trim() };
+    if (isV) payload.cumulativeKm = f.get('km');
+    const action = (it?'update':'add') + (isV?'Vehicle':'Driver');
+    try { await run(action, payload, '저장했습니다'); closeSheet(); } catch(err){ toast('저장 실패: '+err.message, true); }
+  });
+}
+$('#recalc-btn').addEventListener('click', async () => {
+  if (!confirm('모든 기록을 날짜·입력 순으로 정렬하고, 차량별로 출발 km = 직전 도착 km, 도착 km = 출발 + 주행거리로 다시 계산합니다.\n시트의 값이 직접 바뀝니다. 진행할까요?')) return;
+  const b = $('#recalc-btn'); b.disabled = true;
+  try { const r = await run('recalcChain', {}); toast(`재계산 완료 — ${fmt(r.changed)}행 수정`); }
+  catch(e){ toast('재계산 실패: '+e.message, true); } finally { b.disabled = false; }
+});
+$('#refresh-btn').addEventListener('click', () => loadData());
+
+/* ───────── 모달 ───────── */
+function openSheet(html){ $('#sheet').innerHTML = html; $('#modal').classList.add('open'); $$('[data-close]').forEach(b => b.addEventListener('click', closeSheet)); }
+function closeSheet(){ $('#modal').classList.remove('open'); }
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeSheet(); });
+
+/* ───────── 데모 데이터(서버 없이 동작) ───────── */
+const DEMO_DATA = {
+  vehicles:[{id:'sasw_1',name:'카니발 74소3723',cumulativeKm:98752},{id:'sasw_2',name:'스파크 51러4335',cumulativeKm:33308}],
+  drivers:['이지선','정승아','고석우','양종철','이해창','정소희','최봄','이재중','유예리'].map((n,i)=>({id:'sasw_'+String(i+1).padStart(3,'0'),name:n})),
+  logs:[
+    ['2025-11-20','스파크 51러4335','최봄','회의','한국사회복지사협회',29918,29923,'',''],
+    ['2025-11-24','스파크 51러4335','이해창','기관방문','영등포 건가, 신목',29923,29939,'',''],
+    ['2025-11-25','스파크 51러4335','이재중','기관방문','종로종합사회복지관',29939,29979,'',''],
+    ['2025-11-25','스파크 51러4335','정승아','기관방문','광진구',29979,30030,'',''],
+    ['2025-11-27','스파크 51러4335','이해창','기관방문','은평구',30030,30104,'',''],
+    ['2025-11-18','카니발 74소3723','고석우','행사','동작구',95240,95275,'',''],
+    ['2025-11-24','카니발 74소3723','양종철','후원물품수령','영등포구',95304,95312,'',''],
+    ['2025-11-26','카니발 74소3723','양종철','답사','종로구',95312,95341,'',''],
+    ['2026-09-02','스파크 51러4335','이지선','기관방문','도봉구청',32730,32813,'',''],
+    ['2026-09-04','카니발 74소3723','고석우','답사','서대문 안산',98280,98306,'',''],
+    ['2026-09-04','스파크 51러4335','최봄','노원구 연계교육','노원구청',32813,32871,'',''],
+    ['2026-09-10','카니발 74소3723','양종철','사회복지의 날 기념행사','관악구청',98306,98337,'',''],
+    ['2026-09-10','스파크 51러4335','이지선','사회복지의날 행사참석','여성플라자',32871,32884,'',''],
+    ['2026-09-11','카니발 74소3723','이해창','기관방문','삼성떡프린스 마포장복 신목',98337,98373,'',''],
+    ['2026-09-14','카니발 74소3723','이재중','기관방문','삼성떡프린스',98373,98432,'',''],
+    ['2026-09-23','스파크 51러4335','이지선','기관방문','강서구',32884,32973,'',''],
+    ['2026-09-28','스파크 51러4335','정승아','기관방문','강서구',32973,32990,'주유',55000],
+    ['2026-10-06','스파크 51러4335','이지선','기관방문','은평구',32990,33016,'',''],
+    ['2026-10-07','스파크 51러4335','이지선','기관방문','서초구 기관',33016,33055,'',''],
+    ['2026-10-14','카니발 74소3723','양종철','답사','더스테이힐링파크',98432,98575,'',''],
+    ['2026-10-16','스파크 51러4335','이해창','보수교육','중랑구',33055,33115,'',''],
+    ['2026-10-17','스파크 51러4335','이지선','축구풋살대회','강서 개화',33115,33186,'',''],
+    ['2026-10-19','카니발 74소3723','고석우','축구풋살친선전','강서구',98575,98672,'',''],
+    ['2026-10-22','스파크 51러4335','이지선','기관방문','성동구 송파구',33186,33249,'',''],
+    ['2026-10-23','스파크 51러4335','이지선','기관방문','주거협회/동작구',33249,33270,'',''],
+    ['2026-10-27','스파크 51러4335','이지선','기관방문','동작구',33270,33282,'',''],
+    ['2026-10-28','카니발 74소3723','정승아','열매학당 워크숍','파주 홍원연수원',98672,98752,'',''],
+    ['2026-10-29','스파크 51러4335','양종철','주유 및 점검','당산',33282,33308,'수리: 공기압','']
+  ].map((r,i)=>({id:'LOG_DEMO_'+i,date:r[0],vehicleName:r[1],driverName:r[2],purpose:r[3],destination:r[4],startOdometer:r[5],endOdometer:r[6],distance:r[6]-r[5],notes:r[7],fuelCost:r[8],timestamp:'2026-01-01T00:00:00.000Z',
+    vehicleId:r[1].startsWith('카니발')?'sasw_1':'sasw_2',driverId:''}))
+};
+let demoStore = null;
+async function demoApi(action, p={}){
+  await new Promise(r => setTimeout(r, 250));
+  if (!demoStore) demoStore = JSON.parse(JSON.stringify(DEMO_DATA));
+  const S = demoStore, sortLogs = () => S.logs.sort((a,b)=>(b.date+b.timestamp).localeCompare(a.date+a.timestamp));
+  const err = (code,msg,extra) => { throw Object.assign(new Error(msg),{code,extra}); };
+  const refreshKm = name => { const l = sortLogs().find(x=>x.vehicleName===name); const v = S.vehicles.find(x=>x.name===name); if(l&&v) v.cumulativeKm = l.endOdometer; };
+  if (action === 'all') return JSON.parse(JSON.stringify(S));
+  if (action === 'addLog') {
+    const latest = sortLogs().find(x=>x.vehicleName===p.vehicleName);
+    if (latest && latest.endOdometer !== p.startOdometer && !p.force) err('CHAIN_MISMATCH','출발 km 불일치',{expectedStart:latest.endOdometer,latestDate:latest.date,latestDriver:latest.driverName});
+    const nid = 'LOG_'+Date.now(); S.logs.push({ ...p, id:nid, distance:p.endOdometer-p.startOdometer, timestamp:new Date().toISOString() }); refreshKm(p.vehicleName);
+    applyData(JSON.parse(JSON.stringify(S))); return { id: nid };
+  } else if (action === 'updateLog') { const i = S.logs.findIndex(x=>x.id===p.id); S.logs[i] = { ...S.logs[i], ...p, distance:p.endOdometer-p.startOdometer }; refreshKm(p.vehicleName); }
+  else if (action === 'deleteLog') { const l = S.logs.find(x=>x.id===p.id); S.logs = S.logs.filter(x=>x.id!==p.id); refreshKm(l.vehicleName); }
+  else if (action === 'recalcChain') { /* 데모에서는 생략 */ toast('데모 모드에서는 시트가 없어 재계산을 건너뜁니다'); }
+  else {
+    const isV = action.endsWith('Vehicle'), arr = isV ? S.vehicles : S.drivers;
+    if (action.startsWith('add')) arr.push({ id:p.id, name:p.name, ...(isV?{cumulativeKm:Number(p.cumulativeKm)||0}:{}) });
+    if (action.startsWith('update')) { const it = arr.find(x=>x.id===p.id); it.name = p.name; if (isV && p.cumulativeKm!=='') it.cumulativeKm = Number(p.cumulativeKm); }
+    if (action.startsWith('delete')) { const i = arr.findIndex(x=>x.id===p.id); arr.splice(i,1); }
+  }
+  applyData(JSON.parse(JSON.stringify(S)));
+  return {};
+}
+
+/* ───────── 시작 ───────── */
+(function init(){
+  $('#f-date').value = todayStr();
+  if (DEMO) { toast('데모 모드 — 입력 내용은 저장되지 않습니다'); }
+  try { // 직전 데이터로 즉시 화면 구성 → 이후 서버 데이터로 교체
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if (c && !DEMO) { vehicles=c.vehicles; drivers=c.drivers; logs=c.logs; renderAll(); setSync('busy','갱신 중'); }
+  } catch(_){}
+  loadData(true).then(() => { if (!lastSync) setSync('err','연결 실패'); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && lastSync && Date.now()-lastSync > 60000) loadData(true); });
+})();
+</script>
+</body>
+</html>
